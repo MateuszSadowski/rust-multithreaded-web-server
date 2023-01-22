@@ -16,7 +16,9 @@ fn main() {
         let stream = stream.unwrap();
 
         println!("Connection established!");
-        handle_connection(stream);
+        thread::spawn(|| {
+            handle_connection(stream);
+        });
     }
 }
 
