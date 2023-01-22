@@ -5,18 +5,20 @@ use std::{
     thread,
     time::Duration,
 };
+use hello::ThreadPool;
 
 fn main() {
     println!("Server starting.");
     let port = 7878;
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).unwrap();
+    let thread_pool = ThreadPool::new(4);
 
     println!("Started listening on {port}.");
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
         println!("Connection established!");
-        thread::spawn(|| {
+        thread_pool.execute(|| {
             handle_connection(stream);
         });
     }
