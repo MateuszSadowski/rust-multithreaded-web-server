@@ -1,3 +1,5 @@
+use std::thread;
+
 pub struct ThreadPool;
 
 impl ThreadPool {
@@ -30,6 +32,7 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
+        thread::spawn(f);
     }
 }
 
