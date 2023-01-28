@@ -1,4 +1,9 @@
-use std::thread;
+use std::{
+    sync::{mpsc, Arc, Mutex},
+    thread,
+};
+
+struct Job;
 
 struct Worker {
     id: usize,
@@ -6,8 +11,10 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize) -> Worker {
-        let thread = thread::spawn(||{});
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(||{
+            receiver;
+        });
         
         Worker {
             id,
@@ -18,6 +25,7 @@ impl Worker {
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
+    sender: mpsc::Sender<Job>,
 }
 
 impl ThreadPool {
@@ -29,9 +37,11 @@ impl ThreadPool {
     ///
     /// The `new` function will panic if the size is zero.
     pub fn new(size: usize) -> ThreadPool {
-        let workers = Self::create_workers(size);
-
-        ThreadPool { workers }
+        Self::build(size).unwrap_or_else(|error| {
+            match &error.kind() {
+                ThreadPoolCreationErrorKind::BadArgument => { panic!("Thread pool creation bad argument error: {}", error.message); },
+            }
+        }) 
     }
 
     /// Create a new ThreadPool if size is larger than 0.
@@ -40,12 +50,12 @@ impl ThreadPool {
     /// The size is the number of workers in the pool.
     pub fn build(size: usize) -> Result<ThreadPool, ThreadPoolCreationError> {
         if size <= 0 {
-            return Err(ThreadPoolCreationError::new("size is smaller or equal 0".to_string()));
+            return Err(ThreadPoolCreationError::new(ThreadPoolCreationErrorKind::BadArgument, "Size is smaller or equal 0.".to_string()));
         }
 
-        let workers = Self::create_workers(size);
+        let (workers, sender) = Self::create_workers(size);
 
-        Ok(ThreadPool { workers })
+        Ok(ThreadPool { workers, sender })
     }
 
     pub fn execute<F>(&self, f: F)
@@ -62,27 +72,39 @@ impl ThreadPool {
     /// # Panics
     ///
     /// The `create_workers` function will panic if the size is zero.
-    fn create_workers(size: usize) -> Vec<Worker> {
+    fn create_workers(size: usize) -> (Vec<Worker>, mpsc::Sender<Job>) {
         assert!(size > 0);
+
+        let (sender, receiver) = mpsc::channel();
+        let receiver = Arc::new(Mutex::new(receiver));
 
         let mut workers = Vec::with_capacity(size);
 
         for id in 0..size {
-            workers.push(Worker::new(id));
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        workers
+        (workers, sender)
     }
 }
 
+#[derive(Clone)]
+pub enum ThreadPoolCreationErrorKind {
+    BadArgument,
+}
+
 pub struct ThreadPoolCreationError {
+    pub kind: ThreadPoolCreationErrorKind,
     pub message: String,
 }
 
 impl ThreadPoolCreationError {
-    pub fn new(message: String) -> ThreadPoolCreationError {
+    pub fn new(kind: ThreadPoolCreationErrorKind, message: String) -> ThreadPoolCreationError {
         Self {
+            kind,
             message,
         }
     }
+
+    pub fn kind(&self) -> ThreadPoolCreationErrorKind { self.kind.clone() }
 }
