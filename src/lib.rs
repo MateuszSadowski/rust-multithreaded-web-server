@@ -3,7 +3,7 @@ use std::{
     thread,
 };
 
-struct Job;
+type Job = Box<dyn FnOnce() + Send + 'static>;
 
 struct Worker {
     id: usize,
@@ -11,9 +11,20 @@ struct Worker {
 }
 
 impl Worker {
+    // TODO: Add explanation for parameters
+    /// Create a new Worker.
+    /// 
+    /// # Panics
+    ///
+    /// The `new` function will panic if the mutex holding the receiver is poisoned or the sender
+    /// stopped sending.
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        let thread = thread::spawn(||{
-            receiver;
+        let thread = thread::spawn(move || loop {
+            let job = receiver.lock().unwrap().recv().unwrap();
+
+            println!("Worker {id} got a job; executing.");
+
+            job();
         });
         
         Worker {
@@ -58,11 +69,19 @@ impl ThreadPool {
         Ok(ThreadPool { workers, sender })
     }
 
+    /// Sends a job to the pool of threads for execution.
+    ///
+    /// # Panics
+    ///
+    /// The `execute` function will panic if all the threads in the pool stop receiving messages.
     pub fn execute<F>(&self, f: F)
     where
         F: FnOnce() + Send + 'static,
     {
-        thread::spawn(f);
+        let job = Box::new(f);
+
+        // TODO: Handle errors better
+        self.sender.send(job).unwrap();
     }
 
     /// Creates the requested number of workers.
