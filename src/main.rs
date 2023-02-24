@@ -1,3 +1,6 @@
+// This implementation is based on the "The Rust Programming Language Book" chapter 20: "Final
+// Project: Building a Multithreaded Web Server".
+
 use std::{
     fs,
     net::{TcpListener, TcpStream},
@@ -6,6 +9,14 @@ use std::{
     time::Duration,
 };
 use hello::ThreadPool;
+
+// TODO:
+// - Add README
+// - Add more documentation to ThreadPool and its public methods.
+// - Add tests of the library’s functionality.
+// - Change calls to unwrap to more robust error handling.
+// - Use ThreadPool to perform some task other than serving web requests.
+// - Find a thread pool crate on crates.io and implement a similar web server using the crate instead. Then compare its API and robustness to the thread pool we implemented.
 
 fn main() {
     println!("Server starting.");
