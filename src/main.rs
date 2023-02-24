@@ -14,7 +14,11 @@ fn main() {
     let thread_pool = ThreadPool::new(4);
 
     println!("Started listening on {port}.");
-    for stream in listener.incoming() {
+    // Note: the server will process only three requests and shutdown gracefully afterwards
+    // However, it won't shutdown until it can join all the threads. Therefore, we first need
+    // to send another request and since the sender has already been dropped, the threads
+    // will receiver an error and finish their execution.
+    for stream in listener.incoming().take(3) {
         let stream = stream.unwrap();
 
         println!("Connection established!");
@@ -22,6 +26,8 @@ fn main() {
             handle_connection(stream);
         });
     }
+
+    println!("Shutting down.");
 }
 
 fn handle_connection(mut stream: TcpStream) {
