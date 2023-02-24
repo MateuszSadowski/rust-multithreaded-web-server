@@ -8,7 +8,7 @@ use std::{
     thread,
     time::Duration,
 };
-use hello::ThreadPool;
+use server::ThreadPool;
 
 // TODO:
 // - Add README
